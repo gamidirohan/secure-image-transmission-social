@@ -34,8 +34,19 @@ API_BASE_URL = "http://localhost:8000"
 user_states = {}
 user_data = {}
 
+# Session file path
+SESSION_FILE = 'secure_image_bot.session'
+
+# Delete session file if it exists
+if os.path.exists(SESSION_FILE):
+    try:
+        os.remove(SESSION_FILE)
+        logger.info(f"Deleted existing session file: {SESSION_FILE}")
+    except Exception as e:
+        logger.error(f"Failed to delete session file: {e}")
+
 # Initialize the Telegram client
-bot = TelegramClient('secure_image_bot', API_ID, API_HASH)
+bot = TelegramClient(SESSION_FILE, API_ID, API_HASH)
 
 @bot.on(events.NewMessage(pattern='/start'))
 async def start_handler(event):
@@ -349,20 +360,37 @@ async def photo_handler(event):
 
 async def main():
     """Start the bot."""
-    await bot.start(bot_token=BOT_TOKEN)
-
-    # Check if the API server is running
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f"{API_BASE_URL}/health") as response:
-                if response.status == 200:
-                    logger.info("Connected to FastAPI server successfully")
-                else:
-                    logger.warning("FastAPI server is running but returned an error")
-    except:
-        logger.error("Could not connect to FastAPI server. Make sure it's running.")
+        logger.info("Starting secure image bot...")
+        await bot.start(bot_token=BOT_TOKEN)
 
-    await bot.run_until_disconnected()
+        # Check if the API server is running
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{API_BASE_URL}/health") as response:
+                    if response.status == 200:
+                        logger.info("Connected to FastAPI server successfully")
+                    else:
+                        logger.warning("FastAPI server is running but returned an error")
+        except Exception as e:
+            logger.error(f"Could not connect to FastAPI server: {e}")
+            logger.error("Make sure the FastAPI server is running.")
+
+        logger.info("Bot is now running. Press Ctrl+C to stop.")
+        await bot.run_until_disconnected()
+    except KeyboardInterrupt:
+        logger.info("Bot stopped by user")
+    except Exception as e:
+        logger.error(f"Error running bot: {e}")
+    finally:
+        # Clean up session file when bot is stopped
+        if os.path.exists(SESSION_FILE):
+            try:
+                os.remove(SESSION_FILE)
+                logger.info(f"Cleaned up session file: {SESSION_FILE}")
+            except Exception as e:
+                logger.error(f"Failed to clean up session file: {e}")
+        logger.info("Bot shutdown complete")
 
 if __name__ == "__main__":
     asyncio.run(main())

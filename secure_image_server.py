@@ -59,6 +59,7 @@ class ImageMessage(BaseModel):
     iv_path: str
     permutation_path: str
     minutiae_count: int
+    fingerprint_info_path: str
 
 # Helper functions from CS_project.py
 def generate_aes_key():
@@ -374,16 +375,24 @@ async def encrypt_image(
     if original_image is None:
         raise HTTPException(status_code=400, detail="Could not load image")
 
-    # Get sender's fingerprint features
-    sender = users_db[sender_id]
-    minutiae = extract_fingerprint_features_cn(sender.fingerprint_path)
+    # Get recipient's fingerprint features (for biometric-based scrambling)
+    recipient = users_db[recipient_id]
+    minutiae = extract_fingerprint_features_cn(recipient.fingerprint_path)
     if not minutiae:
-        raise HTTPException(status_code=400, detail="Could not extract sender's fingerprint features")
+        raise HTTPException(status_code=400, detail="Could not extract recipient's fingerprint features")
 
     num_minutiae = len(minutiae)
 
-    # Derive biometric key
+    # Derive biometric key from recipient's fingerprint
     biometric_key, biometric_key_raw = derive_biometric_key(minutiae)
+    logger.info(f"Using recipient's fingerprint for encryption. Minutiae count: {num_minutiae}")
+    logger.info(f"Derived biometric key: {biometric_key}")
+
+    # Store the recipient's fingerprint information for verification during decryption
+    recipient_fingerprint_info = {
+        "num_minutiae": num_minutiae,
+        "biometric_key": biometric_key
+    }
 
     # Generate AES key
     aes_key = generate_aes_key()
@@ -427,6 +436,11 @@ async def encrypt_image(
     with open(minutiae_count_path, "w") as f:
         f.write(str(num_minutiae))
 
+    # Save recipient's fingerprint info for verification
+    fingerprint_info_path = f"{message_dir}/fingerprint_info.json"
+    with open(fingerprint_info_path, "w") as f:
+        json.dump(recipient_fingerprint_info, f)
+
     # Store image message data
     image_message = ImageMessage(
         message_id=message_id,
@@ -437,7 +451,8 @@ async def encrypt_image(
         encrypted_aes_key_path=encrypted_aes_key_path,
         iv_path=iv_path,
         permutation_path=permutation_path,
-        minutiae_count=num_minutiae
+        minutiae_count=num_minutiae,
+        fingerprint_info_path=fingerprint_info_path
     )
 
     images_db[message_id] = image_message
@@ -488,7 +503,7 @@ async def decrypt_image(
     with open(temp_fingerprint_path, "wb") as f:
         f.write(await fingerprint.read())
 
-    # Extract fingerprint features
+    # Extract fingerprint features from the uploaded fingerprint
     minutiae = extract_fingerprint_features_cn(temp_fingerprint_path)
     if not minutiae:
         os.remove(temp_fingerprint_path)
@@ -496,8 +511,21 @@ async def decrypt_image(
 
     num_minutiae = len(minutiae)
 
-    # Check if the number of minutiae matches
-    if abs(num_minutiae - image_message.minutiae_count) > 5:  # Allow some tolerance
+    # Load the stored fingerprint information
+    with open(image_message.fingerprint_info_path, "r") as f:
+        stored_fingerprint_info = json.load(f)
+
+    # Derive biometric key from the uploaded fingerprint
+    biometric_key, _ = derive_biometric_key(minutiae)
+
+    # Check if the fingerprint matches (with some tolerance)
+    minutiae_match = abs(num_minutiae - stored_fingerprint_info["num_minutiae"]) <= 5
+    key_match = abs(biometric_key - stored_fingerprint_info["biometric_key"]) < 0.1
+
+    logger.info(f"Fingerprint verification: Uploaded minutiae: {num_minutiae}, Stored minutiae: {stored_fingerprint_info['num_minutiae']}")
+    logger.info(f"Fingerprint verification: Uploaded key: {biometric_key}, Stored key: {stored_fingerprint_info['biometric_key']}")
+
+    if not (minutiae_match and key_match):
         os.remove(temp_fingerprint_path)
         raise HTTPException(status_code=403, detail="Fingerprint verification failed")
 

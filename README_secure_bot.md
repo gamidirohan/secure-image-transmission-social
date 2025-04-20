@@ -61,6 +61,21 @@ The system consists of two main components:
 
 ## Usage
 
+### Option 1: Using the restart script (recommended)
+
+Run the restart script to automatically clean up session files and start both the server and bot:
+```
+python restart_secure_bot.py
+```
+
+This script will:
+- Clean up any existing session files
+- Start the FastAPI server
+- Start the Telegram bot
+- Handle proper shutdown when you press Ctrl+C
+
+### Option 2: Manual startup
+
 1. Start the FastAPI backend server:
    ```
    python secure_image_server.py
@@ -96,20 +111,21 @@ The system consists of two main components:
 
 ### Encryption Process
 
-1. The sender's fingerprint features are extracted and used to derive a biometric key
+1. The recipient's fingerprint features (stored during registration) are used to derive a biometric key
 2. A random AES key is generated for the image
 3. The AES key is encrypted using the recipient's public RSA key
-4. The image is scrambled using a chaotic map influenced by the sender's biometric key
+4. The image is scrambled using a chaotic map influenced by the recipient's biometric key
 5. The scrambled image is encrypted using AES in CBC mode with a random IV
-6. All necessary data (encrypted image, encrypted AES key, IV, permutation map, minutiae count) is stored on the server
+6. All necessary data (encrypted image, encrypted AES key, IV, permutation map, fingerprint information) is stored on the server
 
 ### Decryption Process
 
-1. The recipient's fingerprint features are extracted and verified against the stored minutiae count
-2. The encrypted AES key is decrypted using the recipient's private RSA key
-3. The encrypted image is decrypted using the recovered AES key and the stored IV
-4. The decrypted image is unscrambled using the stored permutation map
-5. The original image is returned to the recipient
+1. The recipient uploads their fingerprint image for verification
+2. Features are extracted from the uploaded fingerprint and compared with the stored fingerprint information
+3. If verification succeeds, the encrypted AES key is decrypted using the recipient's private RSA key
+4. The encrypted image is decrypted using the recovered AES key and the stored IV
+5. The decrypted image is unscrambled using the stored permutation map
+6. The original image is returned to the recipient
 
 ## License
 
