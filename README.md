@@ -29,17 +29,17 @@ The system consists of two main components:
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/secure-image-bot.git
-   cd secure-image-bot
+   git clone https://github.com/gamidirohan/secure-image-transmission-social.git
+   cd secure-image-transmission-social
    ```
 
 2. Create and activate a virtual environment:
    ```
-   python -m venv venv
+   python -m venv myenv
    # On Windows
-   venv\Scripts\activate
+   myenv\Scripts\activate
    # On Linux/Mac
-   source venv/bin/activate
+   source myenv/bin/activate
    ```
 
 3. Install the required packages:
@@ -54,39 +54,34 @@ The system consists of two main components:
 
 5. Edit the `.env` file and add your Telegram bot token:
    ```
-   API_ID=22158010
-   API_HASH=5c5e7bd6c453ee3aeaf4aa63109d536c
+   API_ID=your_api_id
+   API_HASH=your_API_hash_id
    BOT_API_TOKEN=your_bot_token_here
    ```
 
 ## Usage
 
-### Option 1: Using the restart script (recommended)
-
-Run the restart script to automatically clean up session files and start both the server and bot:
-```
-python restart_secure_bot.py
-```
-
-This script will:
-- Clean up any existing session files
-- Start the FastAPI server
-- Start the Telegram bot
-- Handle proper shutdown when you press Ctrl+C
-
-### Option 2: Manual startup
-
-1. Start the FastAPI backend server:
+1. Activate the virtual environment:
    ```
-   python secure_image_server.py
+   # On Windows
+   myenv\Scripts\activate
+   # On Linux/Mac
+   source myenv/bin/activate
    ```
 
-2. In a separate terminal, start the Telegram bot:
+2. Start the FastAPI backend server:
+   ```
+   uvicorn secure_image_server:app --reload
+   ```
+
+3. In a separate terminal (with virtual environment activated), start the Telegram bot:
    ```
    python secure_image_bot.py
    ```
 
-3. Interact with the bot on Telegram:
+   Note: The bot will automatically delete any existing session files before starting.
+
+4. Interact with the bot on Telegram:
    - Use `/register` to register with your fingerprint
    - Use `/send_image` to send an encrypted image to another user
    - Use `/decrypt` to decrypt an image sent to you
