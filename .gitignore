@@ -130,3 +130,17 @@ minutiae_count.txt
 # config.py
 # *.pem
 # *.key
+
+# Session files
+*.session
+*.session-journal
+
+# Temporary test files
+test_*.py
+
+# Temporary image files
+data/binary.jpg
+data/thinned.jpg
+
+# Redundant files
+run_secure_bot.py
